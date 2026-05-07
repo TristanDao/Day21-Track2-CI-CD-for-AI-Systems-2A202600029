@@ -5,10 +5,42 @@ import yaml
 import json
 import joblib
 import os
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_recall_fscore_support
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 EVAL_THRESHOLD = 0.70
+
+
+def build_model(params: dict):
+    model_params = {k: v for k, v in params.items() if k != "model_type"}
+    model_type = params.get("model_type", "random_forest")
+
+    if model_type == "random_forest":
+        return RandomForestClassifier(**model_params, random_state=42)
+
+    if model_type == "gradient_boosting":
+        return GradientBoostingClassifier(**model_params, random_state=42)
+
+    if model_type == "extra_trees":
+        return ExtraTreesClassifier(**model_params, random_state=42)
+
+    if model_type == "logistic_regression":
+        return Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "classifier",
+                    LogisticRegression(**model_params, random_state=42, max_iter=2000),
+                ),
+            ]
+        )
+
+    raise ValueError(f"Unsupported model_type: {model_type}")
 
 
 def train(
@@ -38,27 +70,49 @@ def train(
     X_eval  = df_eval.drop(columns=["target"])
     y_eval  = df_eval["target"]
 
+    label_distribution = (y_train.value_counts(normalize=True).sort_index().to_dict())
+
+    for label in [0, 1, 2]:
+        ratio = float(label_distribution.get(label, 0.0))
+        if ratio < 0.10:
+            print(f"WARNING: label {label} chiem {ratio:.4%} < 10% tong so mau huan luyen")
+
     mlflow.set_tracking_uri("sqlite:///mlflow.db")
-    mlflow.set_experiment("RandomForest Training")
+    mlflow.set_experiment("Wine Quality Training")
     
     with mlflow.start_run():
 
         # TODO 3: Ghi nhan cac sieu tham so
         mlflow.log_params(params)
+        mlflow.log_param("train_size", len(df_train))
+        mlflow.log_param("eval_size", len(df_eval))
 
         # TODO 4: Khoi tao va huan luyen RandomForestClassifier
         # Goi y: su dung random_state=42 de dam bao tinh tai tao
-        model = RandomForestClassifier(**params, random_state=42)
+        model = build_model(params)
         model.fit(X_train, y_train)
 
         # TODO 5: Du doan tren tap danh gia va tinh chi so
         preds = model.predict(X_eval)
         acc   = accuracy_score(y_eval, preds)
         f1    = f1_score(y_eval, preds, average="weighted")
+        precision, recall, _, _ = precision_recall_fscore_support(
+            y_eval,
+            preds,
+            labels=[0, 1, 2],
+            zero_division=0,
+        )
+        cm = confusion_matrix(y_eval, preds, labels=[0, 1, 2])
 
         # TODO 6: Ghi nhan chi so vao MLflow
         mlflow.log_metric("accuracy", acc)
         mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("precision_class_0", float(precision[0]))
+        mlflow.log_metric("precision_class_1", float(precision[1]))
+        mlflow.log_metric("precision_class_2", float(precision[2]))
+        mlflow.log_metric("recall_class_0", float(recall[0]))
+        mlflow.log_metric("recall_class_1", float(recall[1]))
+        mlflow.log_metric("recall_class_2", float(recall[2]))
         mlflow.sklearn.log_model(model, "model")
 
         # TODO 7: In ket qua ra man hinh
@@ -68,7 +122,49 @@ def train(
         # File nay duoc doc boi GitHub Actions o Buoc 2
         os.makedirs("outputs", exist_ok=True)
         with open("outputs/metrics.json", "w") as f:
-            json.dump({"accuracy": acc, "f1_score": f1}, f)
+            json.dump(
+                {
+                    "accuracy": acc,
+                    "f1_score": f1,
+                    "model_type": params.get("model_type", "random_forest"),
+                    "label_distribution": {
+                        str(k): float(v) for k, v in label_distribution.items()
+                    },
+                    "per_class": {
+                        "0": {
+                            "precision": float(precision[0]),
+                            "recall": float(recall[0]),
+                        },
+                        "1": {
+                            "precision": float(precision[1]),
+                            "recall": float(recall[1]),
+                        },
+                        "2": {
+                            "precision": float(precision[2]),
+                            "recall": float(recall[2]),
+                        },
+                    },
+                    "confusion_matrix": cm.tolist(),
+                },
+                f,
+                indent=2,
+            )
+
+        with open("outputs/report.txt", "w") as f:
+            f.write(f"Accuracy: {acc:.4f}\n")
+            f.write(f"F1 Score: {f1:.4f}\n")
+            f.write(f"Model Type: {params.get('model_type', 'random_forest')}\n")
+            f.write("Label Distribution:\n")
+            for label in [0, 1, 2]:
+                f.write(f"- Class {label}: {float(label_distribution.get(label, 0.0)):.4f}\n")
+            f.write("Confusion Matrix:\n")
+            for row in cm.tolist():
+                f.write(f"{row}\n")
+            f.write("Per-class Precision/Recall:\n")
+            for label in [0, 1, 2]:
+                f.write(
+                    f"- Class {label}: precision={float(precision[label]):.4f}, recall={float(recall[label]):.4f}\n"
+                )
 
         # TODO 9: Luu mo hinh ra file models/model.pkl
         # File nay duoc upload len GCS o Buoc 2

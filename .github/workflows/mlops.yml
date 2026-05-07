@@ -2,7 +2,7 @@ name: MLOps Pipeline
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - "data/**.dvc"
       - "src/**.py"
@@ -44,6 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       accuracy: ${{ steps.read_metrics.outputs.accuracy }}
+      previous_accuracy: ${{ steps.previous_metrics.outputs.previous_accuracy }}
 
     steps:
       - uses: actions/checkout@v4
@@ -65,6 +66,32 @@ jobs:
         run: |
           echo '${{ secrets.CLOUD_CREDENTIALS }}' > sa-key.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=sa-key.json" >> $GITHUB_ENV
+
+      - name: Read previous deployed metrics
+        id: previous_metrics
+        run: |
+          python - <<'EOF'
+          import os
+          from google.cloud import storage
+
+          bucket_name = "${{ secrets.CLOUD_BUCKET }}"
+          remote_path = "models/latest/metrics.json"
+          local_path = "previous_metrics.json"
+
+          client = storage.Client()
+          bucket = client.bucket(bucket_name)
+          blob = bucket.blob(remote_path)
+
+          previous_accuracy = ""
+          if blob.exists():
+              blob.download_to_filename(local_path)
+              import json
+              with open(local_path) as f:
+                  previous_accuracy = str(json.load(f).get("accuracy", ""))
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"previous_accuracy={previous_accuracy}\n")
+          EOF
 
       - name: Pull data with DVC
         # TODO 3: Pull cac file du lieu can thiet tu cloud storage bang lenh dvc pull.
@@ -120,7 +147,27 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: metrics
-          path: outputs/metrics.json
+          path: |
+            outputs/metrics.json
+            outputs/report.txt
+
+      - name: Upload metrics to Cloud Storage
+        run: |
+          python - <<'EOF'
+          from google.cloud import storage
+
+          bucket_name = "${{ secrets.CLOUD_BUCKET }}"
+          client = storage.Client()
+          bucket = client.bucket(bucket_name)
+
+          for local_path, remote_path in [
+              ("outputs/metrics.json", "models/latest/metrics.json"),
+              ("outputs/report.txt", "models/latest/report.txt"),
+          ]:
+              blob = bucket.blob(remote_path)
+              blob.upload_from_filename(local_path)
+              print(f"Uploaded {local_path} to gs://{bucket_name}/{remote_path}")
+          EOF
 
   # ---------------------------------------------------------------------------
   # JOB 3 - EVAL
@@ -149,6 +196,28 @@ jobs:
           if acc < 0.70:
               raise SystemExit(f"FAILED: accuracy {acc:.4f} < 0.70. Huy deploy.")
           print("PASSED: dang trien khai model.")
+          EOF
+
+      - name: Check rollback gate
+        run: |
+          python - <<'EOF'
+          current = float("${{ needs.train.outputs.accuracy }}")
+          previous_raw = "${{ needs.train.outputs.previous_accuracy }}".strip()
+
+          if not previous_raw:
+              print("No previous deployed metrics found. Skip rollback gate.")
+              raise SystemExit(0)
+
+          previous = float(previous_raw)
+          print(f"Current accuracy: {current:.4f}")
+          print(f"Previous accuracy: {previous:.4f}")
+
+          if current < previous:
+              raise SystemExit(
+                  f"FAILED: current accuracy {current:.4f} < previous accuracy {previous:.4f}. Huy deploy."
+              )
+
+          print("PASSED: current model khong kem hon model dang chay.")
           EOF
 
   # ---------------------------------------------------------------------------
