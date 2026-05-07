@@ -69,7 +69,7 @@ jobs:
       - name: Pull data with DVC
         # TODO 3: Pull cac file du lieu can thiet tu cloud storage bang lenh dvc pull.
         #         Chi pull train_phase1.csv va eval.csv (khong can train_phase2.csv).
-        run: dvc pull train_phase1.csv eval.csv
+        run: dvc pull
 
       - name: Train model
         run: python src/train.py
