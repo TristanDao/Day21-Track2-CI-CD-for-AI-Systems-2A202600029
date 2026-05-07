@@ -1,0 +1,15 @@
+artifact_uri: file:///home/thinh/projects/vinuni/assiment/Day21-Track2-CI-CD-for-AI-Systems-2A202600029/mlruns/0/50517ea048a944df9a2189ffbf9908bf/artifacts
+end_time: 1778162117560
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 50517ea048a944df9a2189ffbf9908bf
+run_name: thundering-skink-283
+run_uuid: 50517ea048a944df9a2189ffbf9908bf
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778162107754
+status: 3
+tags: []
+user_id: thinh

@@ -1,0 +1,15 @@
+artifact_uri: file:///home/thinh/projects/vinuni/assiment/Day21-Track2-CI-CD-for-AI-Systems-2A202600029/mlruns/0/e4001ec8b1f74e8db65122c3361e6a95/artifacts
+end_time: 1778162094245
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: e4001ec8b1f74e8db65122c3361e6a95
+run_name: respected-tern-730
+run_uuid: e4001ec8b1f74e8db65122c3361e6a95
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778162084509
+status: 3
+tags: []
+user_id: thinh
