@@ -4,10 +4,10 @@
 - `REPORT.md`: Báo cáo ngắn để nộp.
 
 ## Minh chứng hiện có trong repo
-- `mfflow_UIpng.png`: Ảnh MLflow UI.
-- `CI_CD.png`: Ảnh GitHub Actions.
-- `curl.png`: Ảnh kiểm tra API.
-- `dvc_models.png`: Ảnh cloud storage / model artifact.
+- `mlflow-ui.png`: Ảnh MLflow UI.
+- `github-actions.png`: Ảnh GitHub Actions.
+- `api-curl.png`: Ảnh kiểm tra API.
+- `cloud-storage-models.png`: Ảnh cloud storage / model artifact.
 
 ## Việc cần kiểm tra trước khi nộp
 - Thay link GitHub public vào `REPORT.md`.
