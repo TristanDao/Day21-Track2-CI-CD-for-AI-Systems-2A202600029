@@ -2,7 +2,6 @@
 
 ## Thông tin sinh viên
 - Họ tên / MSSV: 2A202600029 - Đào Phước Thịnh
-- Repository: Điền link GitHub public của repo tại đây
 
 ## Mục tiêu thực hiện
 Bài làm xây dựng pipeline CI/CD cho một hệ thống AI gồm các bước kiểm thử, huấn luyện, đánh giá và triển khai mô hình. Hệ thống sử dụng MLflow để theo dõi thí nghiệm, DVC để quản lý phiên bản dữ liệu và FastAPI để phục vụ mô hình trên máy ảo.

@@ -28,7 +28,7 @@ df = df.drop(columns=["quality"])
 
 os.makedirs("data", exist_ok=True)
 
-n_eval = 500
+n_eval = 1000
 n_half = (len(df) - n_eval) // 2
 
 eval_df      = df.iloc[:n_eval]
